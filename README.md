@@ -24,23 +24,6 @@ parquet). Each team received one `.parquet` file. Team 4's file is
 
 ---
 
-## Why parquet (and not CSV)?
-
-The dataset arrived as parquet, not CSV. Worth noting why this matters:
-
-- **Size.** 5.8M rows fits in 54 MB as parquet. As CSV the same data
-  would be ~700 MB to 1 GB.
-- **Speed.** Parquet stores data column-by-column, so reading specific
-  columns is much faster than CSV's row-by-row format.
-- **Data types are preserved.** Timestamps stay as timestamps, floats
-  stay as floats. CSV turns everything into text.
-- **Industry standard** for data engineering pipelines.
-
-Trade-off: parquet is binary, so you can't open it in Notepad. You
-need a library like pandas + pyarrow to read it.
-
----
-
 ## Week 1 — Ingestion Summary & Partitioning
 
 ### Goal
@@ -57,9 +40,7 @@ The instructor said data ingestion was already done by him. Our job:
 Ingestion = bringing raw data into your system in a usable form.
 The instructor's pipeline did: collect CSVs → join them → save as
 parquet → split per team. The **ingestion summary** is a report
-describing the resulting dataset — like a receipt proving the data
-loaded correctly and showing what's in it.
-
+describing the resulting dataset.
 ### What we did
 
 1. Installed `pandas` (for handling the table) and `pyarrow` (the
@@ -89,16 +70,12 @@ The folder names *are* the data — pandas, Spark, DuckDB, and Hive all
 read the folder name and automatically know "everything inside this
 folder belongs to January 2024."
 
-**Why bother?** If someone only needs Jan 2024, they load that one
-small file instead of the whole dataset. This is the same pattern used
-in production data lakes.
-
-**Gotcha we hit:** First version of the partitioning kept `year` and
+First version of the partitioning kept `year` and
 `month` columns inside the files AND in the folder names. When reading
 the whole partitioned dataset back, pandas threw a type-mismatch error
 because the column from the file (int32) didn't match the column from
 the folder (dictionary type). Fix: drop `year` and `month` from the
-data before saving — the folder names already encode them.
+data before saving the folder names already encode them.
 
 ### Observations on data quality
 
@@ -143,7 +120,7 @@ it into something a database can store, query, and serve fast.
 
 ### Choosing the storage mechanism
 
-The assignment listed three options. Here's how I thought about each:
+The assignment listed three options. Here's how we thought about each:
 
 | Option | Verdict | Reasoning |
 |---|---|---|
