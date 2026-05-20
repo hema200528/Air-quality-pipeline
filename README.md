@@ -275,7 +275,7 @@ DT_project/
 
 ---
 
-## Things I learned doing this
+## Things we learned doing this
 
 - Parquet's columnar layout isn't just an implementation detail —
   it's why DuckDB queries are so fast on it.
@@ -290,10 +290,3 @@ DT_project/
   I hadn't seen before.
 
 ---
-
-## TODO
-
-- Confirm with instructor whether to filter the dataset down to the 8
-  CPCB criteria pollutants only, or keep all 13.
-- Future weeks: data cleaning (handle the missing weather columns,
-  drop `vws_m_s`).
