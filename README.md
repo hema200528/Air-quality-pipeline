@@ -1,4 +1,4 @@
-# Air Quality Data Pipeline — Team 4
+# Air Quality Data Pipeline - Team 4
 
 End-to-end data engineering project on Delhi air-quality sensor data (2024–2025).
 Built across 4 weeks: ingestion → modelling → cleaning/transformation → serving.
@@ -191,9 +191,9 @@ small dimension tables (10 and 13 rows) cost almost nothing.
 | Daily peak NO2 for one station | 716 rows | 56.7 ms |
 | Same Q1 on parquet directly (no DB) | 24 rows | 63.4 ms |
 
-All queries on 5.8M rows completed under 130ms — fast enough for a real-time dashboard.
+All queries on 5.8M rows completed under 130ms, fast enough for a real-time dashboard.
 
-### Empirical proof — DuckDB vs SQLite
+### Empirical proof - DuckDB vs SQLite
 
 Same dataset, same query (avg PM2.5 per month), two databases:
 
@@ -206,14 +206,14 @@ Same dataset, same query (avg PM2.5 per month), two databases:
 | **Speed vs SQLite** | baseline | **21–43× faster** | 16–136× faster |
 | **Size vs SQLite** | baseline | **13.4× smaller** | 20.8× smaller |
 
-**Why DuckDB wins:** SQLite reads every row whole — all 22 columns — even when
+**Why DuckDB wins:** SQLite reads every row whole  all 22 columns  even when
 the query only needs 2. DuckDB reads only the columns the query needs and skips
-the rest. On Q2 (count by pollutant), only 1 column out of 22 is needed —
+the rest. On Q2 (count by pollutant), only 1 column out of 22 is needed 
 DuckDB skips 95% of the data. That gap shows in the numbers.
 
 ---
 
-## Week 3 — EDA, Cleaning & Transformation
+## Week 3 - EDA, Cleaning & Transformation
 
 ### EDA findings
 
@@ -228,7 +228,7 @@ DuckDB skips 95% of the data. That gap shows in the numbers.
 | Delhi's cleanest month | August 2024 — avg 28.1 µg/m³ (5.6× over WHO limit) |
 | Delhi's worst month | November 2024 — avg 250.4 µg/m³ (50× over WHO limit) |
 
-### Dirty rows — what was found
+### Dirty rows - what was found
 
 **Sample of rows with missing weather data (1,990,984 affected rows):**
 
@@ -239,7 +239,7 @@ datetime                   station_id  pollutant  value   at_c  ws_m_s  rh_perce
 2024-01-01 00:00:00+00:00  site_118    pm10      248.70   NaN   0.72    93.12
 ```
 
-**100% null column — vws_m_s (all 5,831,431 rows empty):**
+**100% null column - vws_m_s (all 5,831,431 rows empty):**
 
 ```
 datetime                   station_id  vws_m_s
@@ -251,7 +251,7 @@ datetime                   station_id  vws_m_s
 
 | Step | Action | Values affected |
 |---|---|---|
-| Drop `vws_m_s` | 100% null — useless column | 1 column removed |
+| Drop `vws_m_s` | 100% null useless column | 1 column removed |
 | Drop `timestamp` | Duplicate of `datetime` as plain text | 1 column removed |
 | Drop `station` | Duplicate of `station_id` | 1 column removed |
 | Remove negatives | Physically impossible readings | 0 found |
@@ -265,7 +265,7 @@ datetime                   station_id  vws_m_s
 | Fill `bp_mmhg` | Station-month median | 127,774 filled |
 | **Total imputed** | | **1,860,553 values** |
 
-**Why station-month median?** Respects seasonal variation — January wind speeds
+**Why station-month median?** Respects seasonal variation January wind speeds
 in Delhi are different from July. An overall mean would introduce inaccurate values.
 
 ### Before vs after cleaning
@@ -332,7 +332,7 @@ DuckDB is **8.7× faster than SQLite** and **4.8× faster than pandas** on the s
 
 ## Week 4 — Data Serving
 
-Cleaned and transformed data loaded into `air_quality_served.duckdb` — the final
+Cleaned and transformed data loaded into `air_quality_served.duckdb` ,the final
 output of the pipeline, ready for queries by downstream consumers.
 
 ### Tables served
@@ -353,22 +353,22 @@ output of the pipeline, ready for queries by downstream consumers.
 team_4.parquet
 (raw, 51.8 MB, 5,831,431 rows × 22 cols)
         │
-        ▼ Week 1 — Ingestion & Partitioning
+        ▼ Week 1 - Ingestion & Partitioning
 partitioned_data/
 (24 Hive partitions by year/month)
         │
-        ▼ Week 2 — Data Model
+        ▼ Week 2 - Data Model
 air_quality.duckdb
 (star schema, 3 tables, 80.5 MB, loads in 11.7s)
         │
-        ▼ Week 3 — Cleaning & Transformation
+        ▼ Week 3 - Cleaning & Transformation
 team_4_clean.parquet
 (19 cols, 89.4% quality, 1.86M values imputed)
         +
 transformed/
 (monthly_avg 312 rows, pm25_aqi 628K rows, daily_peaks 66K rows)
         │
-        ▼ Week 4 — Data Serving
+        ▼ Week 4 - Data Serving
 air_quality_served.duckdb
 (5 tables, clean data, ready to query)
 ```
