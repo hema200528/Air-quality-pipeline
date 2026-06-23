@@ -10,8 +10,8 @@ st.set_page_config(page_title="BreatheSafe", page_icon="☁️", layout="wide")
 # ============================================================
 @st.cache_resource
 def load_everything():
-    model = load_model("breathesafe_lstm.keras")
-    with open("breathesafe_data.json") as f:
+     model = load_model("app/breathesafe_lstm.keras")
+     with open("app/breathesafe_data.json") as f:
         bundle = json.load(f)
     return model, bundle
 
