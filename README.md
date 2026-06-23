@@ -403,11 +403,35 @@ air_quality_served.duckdb
 
 ## How to reproduce
 
-```bash
-pip install pandas pyarrow duckdb missingno matplotlib
-```
+### Option A: Python Command Line Pipeline (Production Refactored)
 
-1. Place `team_4.parquet` in the project root (not in repo — too large)
-2. Run `week1_ingestion.ipynb` — produces partitioned data and ingestion summary
-3. Run `air_quality_duckdb.ipynb` — builds DuckDB star schema and benchmarks
-4. Run `week3_cleaning_eda.ipynb` — cleans, transforms, and serves to database
+The exploratory notebook steps have been refactored into production-grade Python modules under `src/` with a coordinating `main.py` entrypoint.
+
+1. **Install Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. **Execute the Pipeline**:
+   Ensure `team_4.parquet` is placed in the project root directory, then run:
+   ```bash
+   python main.py
+   ```
+   This script will sequentially execute ingestion, partitioning, cleaning, database loading (DuckDB), and run the benchmark queries.
+
+3. **Run Unit Tests**:
+   To verify pipeline components locally using mock/synthetic datasets, run:
+   ```bash
+   python -m unittest discover -s tests -p "test_*.py"
+   ```
+
+### Option B: Jupyter Notebooks (Exploratory)
+
+1. **Install Dependencies**:
+   ```bash
+   pip install pandas pyarrow duckdb missingno matplotlib
+   ```
+2. **Execution Steps**:
+   * Place `team_4.parquet` in the project root.
+   * Run `week1_ingestion.ipynb` — produces partitioned data and ingestion summary.
+   * Run `air_quality_duckdb.ipynb` — builds DuckDB star schema and benchmarks.
+   * Run `week3_cleaning_eda.ipynb` — cleans, transforms, and serves to database.
