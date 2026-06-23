@@ -2,6 +2,9 @@ import pandas as pd
 from pathlib import Path
 import shutil
 from typing import Union
+import logging
+
+logger = logging.getLogger(__name__)
 
 def load_data(filepath: Union[str, Path]) -> pd.DataFrame:
     """Loads the raw Parquet file into a Pandas DataFrame.
@@ -19,7 +22,7 @@ def load_data(filepath: Union[str, Path]) -> pd.DataFrame:
     if not path.exists():
         raise FileNotFoundError(f"Source file {filepath} not found.")
     df = pd.read_parquet(path)
-    print(f"[OK] Loaded {len(df):,} rows x {df.shape[1]} columns")
+    logger.info(f"Loaded {len(df):,} rows x {df.shape[1]} columns")
     return df
 
 def generate_summary(df: pd.DataFrame, output_path: Union[str, Path] = "output/ingestion_summary.txt") -> str:
@@ -54,7 +57,7 @@ def generate_summary(df: pd.DataFrame, output_path: Union[str, Path] = "output/i
     ]
     summary_content = "\n".join(summary_lines)
     out_file.write_text(summary_content, encoding="utf-8")
-    print(f"[OK] Saved ingestion summary to {output_path}")
+    logger.info(f"Saved ingestion summary to {output_path}")
     return summary_content
 
 def partition_dataset(df: pd.DataFrame, output_dir: Union[str, Path] = "partitioned_data") -> int:
@@ -81,8 +84,9 @@ def partition_dataset(df: pd.DataFrame, output_dir: Union[str, Path] = "partitio
         # Drop partitioning columns from file content to avoid redundancy
         chunk.drop(columns=["year", "month"]).to_parquet(folder / "data.parquet", index=False)
         written += 1
-        print(f"  Partition year={yr} month={mo:02d}  ->  {len(chunk):,} rows")
+        logger.info(f"  Partition year={yr} month={mo:02d}  ->  {len(chunk):,} rows")
         
-    print(f"[OK] Wrote {written} partition files into '{output_dir}/'")
+    logger.info(f"Wrote {written} partition files into '{output_dir}/'")
     return written
+
 

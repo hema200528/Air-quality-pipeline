@@ -4,6 +4,9 @@ from pathlib import Path
 from collections import defaultdict
 from functools import reduce as ft_reduce
 from typing import Dict, Union, Tuple
+import logging
+
+logger = logging.getLogger(__name__)
 
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     """Performs full data cleaning on the raw air quality DataFrame.
@@ -23,29 +26,29 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     # 1. Drop 100% null column
     if 'vws_m_s' in df_clean.columns:
         df_clean = df_clean.drop(columns=['vws_m_s'])
-        print("[OK] Dropped 'vws_m_s' (100% null)")
+        logger.info("Dropped 'vws_m_s' (100% null)")
         
     # 2. Drop duplicate timestamp column (VARCHAR version)
     if 'timestamp' in df_clean.columns:
         df_clean = df_clean.drop(columns=['timestamp'])
-        print("[OK] Dropped 'timestamp' (duplicate of datetime)")
+        logger.info("Dropped 'timestamp' (duplicate of datetime)")
         
     # 3. Drop duplicate station column
     if 'station' in df_clean.columns:
         df_clean = df_clean.drop(columns=['station'])
-        print("[OK] Dropped 'station' (duplicate of station_id)")
+        logger.info("Dropped 'station' (duplicate of station_id)")
         
     # 4. Remove negative pollution values (physically impossible)
     if 'value' in df_clean.columns:
         neg_mask = df_clean['value'] < 0
         neg_count = neg_mask.sum()
         df_clean = df_clean[~neg_mask]
-        print(f"[OK] Removed {neg_count:,} negative pollution readings")
+        logger.info(f"Removed {neg_count:,} negative pollution readings")
         
     # 5. Remove duplicate rows
     dupes_count = df_clean.duplicated().sum()
     df_clean = df_clean.drop_duplicates()
-    print(f"[OK] Removed {dupes_count:,} duplicate rows")
+    logger.info(f"Removed {dupes_count:,} duplicate rows")
     
     # 6. Fill missing weather values with station-month median
     weather_cols = ['at_c', 'rh_percent', 'ws_m_s', 'wd_deg', 'rf_mm', 'tot_rf_mm', 'sr_w_mt2', 'bp_mmhg']
@@ -56,7 +59,7 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
                 lambda x: x.fillna(x.median())
             )
             after = df_clean[col].isna().sum()
-            print(f"[OK] Filled {before - after:,} missing values in '{col}' with station-month median")
+            logger.info(f"Filled {before - after:,} missing values in '{col}' with station-month median")
             
     return df_clean
 
@@ -145,10 +148,10 @@ def run_etl(df_clean: pd.DataFrame, output_dir: Union[str, Path] = "transformed"
     Returns:
         Dict[str, pd.DataFrame]: A dictionary containing the generated DataFrames.
     """
-    print("=== ETL PIPELINE ===")
+    logger.info("=== ETL PIPELINE ===")
     
     # Extract
-    print(f"  [EXTRACT] {len(df_clean):,} rows from clean dataset")
+    logger.info(f"  [EXTRACT] {len(df_clean):,} rows from clean dataset")
     
     # Transform
     out = {}
@@ -172,9 +175,9 @@ def run_etl(df_clean: pd.DataFrame, output_dir: Union[str, Path] = "transformed"
         ['year', 'month', 'day', 'station_id', 'pollutant']
     )['value'].max().reset_index()
     
-    print(f"  [TRANSFORM] 3 tables produced:")
+    logger.info(f"  [TRANSFORM] 3 tables produced:")
     for name, table in out.items():
-         print(f"    {name}: {len(table):,} rows")
+         logger.info(f"    {name}: {len(table):,} rows")
          
     # Load
     out_path = Path(output_dir)
@@ -182,7 +185,8 @@ def run_etl(df_clean: pd.DataFrame, output_dir: Union[str, Path] = "transformed"
     for name, table in out.items():
         path = out_path / f"{name}.parquet"
         table.to_parquet(path, index=False)
-        print(f"  [LOAD] Saved {path}")
+        logger.info(f"  [LOAD] Saved {path}")
         
     return out
+
 

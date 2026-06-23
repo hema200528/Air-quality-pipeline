@@ -3,6 +3,9 @@ import pandas as pd
 import time
 from pathlib import Path
 from typing import Union
+import logging
+
+logger = logging.getLogger(__name__)
 
 def connect_db(db_path: Union[str, Path]) -> duckdb.DuckDBPyConnection:
     """Connects to the DuckDB database file.
@@ -14,7 +17,7 @@ def connect_db(db_path: Union[str, Path]) -> duckdb.DuckDBPyConnection:
         duckdb.DuckDBPyConnection: The active DuckDB connection object.
     """
     con = duckdb.connect(str(db_path))
-    print(f"[OK] Connected to DuckDB database: {db_path}")
+    logger.info(f"Connected to DuckDB database: {db_path}")
     return con
 
 def create_raw_schema(con: duckdb.DuckDBPyConnection) -> None:
@@ -65,7 +68,7 @@ def create_raw_schema(con: duckdb.DuckDBPyConnection) -> None:
         vws_m_s         DOUBLE
     )
     """)
-    print("[OK] Created raw database tables (stations, pollutants, measurements)")
+    logger.info("Created raw database tables (stations, pollutants, measurements)")
 
 def load_raw_data(con: duckdb.DuckDBPyConnection, parquet_file: Union[str, Path]) -> None:
     """Populates raw tables from the raw Parquet data.
@@ -114,7 +117,7 @@ def load_raw_data(con: duckdb.DuckDBPyConnection, parquet_file: Union[str, Path]
     JOIN pollutants AS p ON m.pollutant = p.pollutant_name
     """)
     elapsed = time.time() - start
-    print(f"[OK] Loaded measurements table in {elapsed:.2f} seconds")
+    logger.info(f"Loaded measurements table in {elapsed:.2f} seconds")
 
 def run_benchmark_queries(con: duckdb.DuckDBPyConnection) -> None:
     """Runs a series of performance benchmark queries on the raw database.
@@ -126,10 +129,10 @@ def run_benchmark_queries(con: duckdb.DuckDBPyConnection) -> None:
         t0 = time.time()
         res = con.sql(sql).df()
         elapsed_ms = (time.time() - t0) * 1000
-        print(f"[TIME] {label}: {elapsed_ms:.1f} ms ({len(res):,} rows)")
+        logger.info(f"[TIME] {label}: {elapsed_ms:.1f} ms ({len(res):,} rows)")
         return res
 
-    print("\nRunning queries on raw database...")
+    logger.info("Running queries on raw database...")
     
     timed_query("Avg PM2.5 per month", """
         SELECT year, month, AVG(value) AS avg_pm25
@@ -228,14 +231,15 @@ def setup_served_database(
         con.sql("CREATE TABLE daily_peaks AS SELECT * FROM peaks_df")
         con.unregister("peaks_df")
         
-    print(f"[OK] Loaded served database measurements_clean in {elapsed:.2f} seconds")
-    print(f"  stations           : {con.sql('SELECT COUNT(*) FROM stations').fetchone()[0]:,}")
-    print(f"  pollutants         : {con.sql('SELECT COUNT(*) FROM pollutants').fetchone()[0]:,}")
-    print(f"  measurements_clean : {con.sql('SELECT COUNT(*) FROM measurements_clean').fetchone()[0]:,}")
+    logger.info(f"Loaded served database measurements_clean in {elapsed:.2f} seconds")
+    logger.info(f"  stations           : {con.sql('SELECT COUNT(*) FROM stations').fetchone()[0]:,}")
+    logger.info(f"  pollutants         : {con.sql('SELECT COUNT(*) FROM pollutants').fetchone()[0]:,}")
+    logger.info(f"  measurements_clean : {con.sql('SELECT COUNT(*) FROM measurements_clean').fetchone()[0]:,}")
     if con.sql("SHOW TABLES").filter("name = 'monthly_aggregates'").fetchone():
-        print(f"  monthly_aggregates : {con.sql('SELECT COUNT(*) FROM monthly_aggregates').fetchone()[0]:,}")
+        logger.info(f"  monthly_aggregates : {con.sql('SELECT COUNT(*) FROM monthly_aggregates').fetchone()[0]:,}")
     if con.sql("SHOW TABLES").filter("name = 'daily_peaks'").fetchone():
-        print(f"  daily_peaks        : {con.sql('SELECT COUNT(*) FROM daily_peaks').fetchone()[0]:,}")
+        logger.info(f"  daily_peaks        : {con.sql('SELECT COUNT(*) FROM daily_peaks').fetchone()[0]:,}")
         
     con.close()
+
 
