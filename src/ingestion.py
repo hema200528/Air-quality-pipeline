@@ -1,9 +1,20 @@
 import pandas as pd
 from pathlib import Path
 import shutil
+from typing import Union
 
-def load_data(filepath: str) -> pd.DataFrame:
-    """Loads the raw Parquet file into a Pandas DataFrame."""
+def load_data(filepath: Union[str, Path]) -> pd.DataFrame:
+    """Loads the raw Parquet file into a Pandas DataFrame.
+
+    Args:
+        filepath: The path to the parquet file to load, either as a string or Path.
+
+    Returns:
+        pd.DataFrame: The loaded DataFrame containing raw air quality data.
+
+    Raises:
+        FileNotFoundError: If the provided filepath does not exist.
+    """
     path = Path(filepath)
     if not path.exists():
         raise FileNotFoundError(f"Source file {filepath} not found.")
@@ -11,8 +22,16 @@ def load_data(filepath: str) -> pd.DataFrame:
     print(f"[OK] Loaded {len(df):,} rows x {df.shape[1]} columns")
     return df
 
-def generate_summary(df: pd.DataFrame, output_path: str = "output/ingestion_summary.txt") -> str:
-    """Generates summary statistics and saves them to a file."""
+def generate_summary(df: pd.DataFrame, output_path: Union[str, Path] = "output/ingestion_summary.txt") -> str:
+    """Generates summary statistics from the data and saves them to a file.
+
+    Args:
+        df: The DataFrame containing air quality data to summarize.
+        output_path: The file path where the summary report will be saved.
+
+    Returns:
+        str: The raw content of the generated summary report.
+    """
     out_file = Path(output_path)
     out_file.parent.mkdir(parents=True, exist_ok=True)
     
@@ -38,8 +57,16 @@ def generate_summary(df: pd.DataFrame, output_path: str = "output/ingestion_summ
     print(f"[OK] Saved ingestion summary to {output_path}")
     return summary_content
 
-def partition_dataset(df: pd.DataFrame, output_dir: str = "partitioned_data") -> int:
-    """Partitions the dataset in Hive-style format (year=YYYY/month=MM/data.parquet)."""
+def partition_dataset(df: pd.DataFrame, output_dir: Union[str, Path] = "partitioned_data") -> int:
+    """Partitions the dataset in Hive-style format (year=YYYY/month=MM/data.parquet).
+
+    Args:
+        df: The DataFrame containing air quality data to partition.
+        output_dir: The root directory where partitions will be saved.
+
+    Returns:
+        int: The total number of partition folders/files written.
+    """
     out_path = Path(output_dir)
     
     # Clean previous partitioning
@@ -58,3 +85,4 @@ def partition_dataset(df: pd.DataFrame, output_dir: str = "partitioned_data") ->
         
     print(f"[OK] Wrote {written} partition files into '{output_dir}/'")
     return written
+

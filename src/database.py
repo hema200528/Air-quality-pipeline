@@ -2,15 +2,29 @@ import duckdb
 import pandas as pd
 import time
 from pathlib import Path
+from typing import Union
 
-def connect_db(db_path: str) -> duckdb.DuckDBPyConnection:
-    """Connects to the DuckDB database file."""
-    con = duckdb.connect(db_path)
+def connect_db(db_path: Union[str, Path]) -> duckdb.DuckDBPyConnection:
+    """Connects to the DuckDB database file.
+
+    Args:
+        db_path: The file path to the DuckDB database, either as a string or Path.
+
+    Returns:
+        duckdb.DuckDBPyConnection: The active DuckDB connection object.
+    """
+    con = duckdb.connect(str(db_path))
     print(f"[OK] Connected to DuckDB database: {db_path}")
     return con
 
-def create_raw_schema(con: duckdb.DuckDBPyConnection):
-    """Creates the raw database tables (stations, pollutants, measurements)."""
+def create_raw_schema(con: duckdb.DuckDBPyConnection) -> None:
+    """Creates the raw database schema and tables (stations, pollutants, measurements).
+
+    Drops tables if they already exist before creating them.
+
+    Args:
+        con: The active DuckDB connection object.
+    """
     con.sql("DROP TABLE IF EXISTS measurements")
     con.sql("DROP TABLE IF EXISTS stations")
     con.sql("DROP TABLE IF EXISTS pollutants")
@@ -53,8 +67,16 @@ def create_raw_schema(con: duckdb.DuckDBPyConnection):
     """)
     print("[OK] Created raw database tables (stations, pollutants, measurements)")
 
-def load_raw_data(con: duckdb.DuckDBPyConnection, parquet_file: str):
-    """Populates raw tables from raw Parquet data."""
+def load_raw_data(con: duckdb.DuckDBPyConnection, parquet_file: Union[str, Path]) -> None:
+    """Populates raw tables from the raw Parquet data.
+
+    Args:
+        con: The active DuckDB connection object.
+        parquet_file: The path to the source parquet data file.
+
+    Raises:
+        FileNotFoundError: If the parquet_file path does not exist.
+    """
     if not Path(parquet_file).exists():
         raise FileNotFoundError(f"Parquet file {parquet_file} not found for database load.")
         
@@ -94,9 +116,13 @@ def load_raw_data(con: duckdb.DuckDBPyConnection, parquet_file: str):
     elapsed = time.time() - start
     print(f"[OK] Loaded measurements table in {elapsed:.2f} seconds")
 
-def run_benchmark_queries(con: duckdb.DuckDBPyConnection):
-    """Runs database benchmark queries."""
-    def timed_query(label, sql):
+def run_benchmark_queries(con: duckdb.DuckDBPyConnection) -> None:
+    """Runs a series of performance benchmark queries on the raw database.
+
+    Args:
+        con: The active DuckDB connection object.
+    """
+    def timed_query(label: str, sql: str) -> pd.DataFrame:
         t0 = time.time()
         res = con.sql(sql).df()
         elapsed_ms = (time.time() - t0) * 1000
@@ -133,9 +159,21 @@ def run_benchmark_queries(con: duckdb.DuckDBPyConnection):
         ORDER BY n DESC
     """)
 
-def setup_served_database(served_db_path: str, df_clean: pd.DataFrame, monthly_avg_path: str, daily_peaks_path: str):
-    """Sets up the final served database containing clean measurements and pre-aggregates."""
-    con = duckdb.connect(served_db_path)
+def setup_served_database(
+    served_db_path: Union[str, Path],
+    df_clean: pd.DataFrame,
+    monthly_avg_path: Union[str, Path],
+    daily_peaks_path: Union[str, Path]
+) -> None:
+    """Sets up the final served database containing clean measurements and pre-aggregates.
+
+    Args:
+        served_db_path: Path where the served DuckDB file will be created.
+        df_clean: The cleaned DataFrame containing measurements.
+        monthly_avg_path: Path to the pre-aggregated monthly average parquet file.
+        daily_peaks_path: Path to the pre-aggregated daily peaks parquet file.
+    """
+    con = duckdb.connect(str(served_db_path))
     
     con.sql("DROP TABLE IF EXISTS measurements_clean")
     con.sql("DROP TABLE IF EXISTS stations")
@@ -200,3 +238,4 @@ def setup_served_database(served_db_path: str, df_clean: pd.DataFrame, monthly_a
         print(f"  daily_peaks        : {con.sql('SELECT COUNT(*) FROM daily_peaks').fetchone()[0]:,}")
         
     con.close()
+

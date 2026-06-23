@@ -3,9 +3,21 @@ import numpy as np
 from pathlib import Path
 from collections import defaultdict
 from functools import reduce as ft_reduce
+from typing import Dict, Union, Tuple
 
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Performs full data cleaning on the raw DataFrame."""
+    """Performs full data cleaning on the raw air quality DataFrame.
+
+    This includes dropping empty or duplicate columns, removing physically impossible
+    negative pollution readings, eliminating duplicate records, and imputing missing
+    weather values with the station-month median.
+
+    Args:
+        df: The raw input DataFrame.
+
+    Returns:
+        pd.DataFrame: The cleaned and imputed DataFrame.
+    """
     df_clean = df.copy()
     
     # 1. Drop 100% null column
@@ -49,7 +61,17 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     return df_clean
 
 def run_batch_transformation(df: pd.DataFrame) -> pd.DataFrame:
-    """Aggregates pollution readings per month and pollutant."""
+    """Aggregates pollution readings per month and pollutant.
+
+    Calculates the mean, max, min, count, and standard deviation of values
+    grouped by year, month, and pollutant.
+
+    Args:
+        df: The clean air quality DataFrame.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing aggregated summary metrics.
+    """
     results = []
     for (year, month), batch in df.groupby(['year', 'month']):
         batch_stats = batch.groupby('pollutant')['value'].agg(
@@ -67,11 +89,21 @@ def run_batch_transformation(df: pd.DataFrame) -> pd.DataFrame:
     return batch_transformed
 
 def run_map_reduce_classification(df: pd.DataFrame) -> pd.DataFrame:
-    """Simulates MapReduce to classify PM2.5 levels by station."""
+    """Simulates a MapReduce process to classify PM2.5 levels by station.
+
+    Categorizes PM2.5 readings into levels (safe, moderate, unhealthy,
+    very_unhealthy, hazardous) and aggregates the count of occurrences per station.
+
+    Args:
+        df: The clean air quality DataFrame.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing counts of classified PM2.5 levels per station.
+    """
     pm25_df = df[df['pollutant'] == 'pm25'].copy()
     
     # MAP
-    def map_fn(row):
+    def map_fn(row: pd.Series) -> Tuple[str, int]:
         val = row['value']
         if val <= 5:        level = 'safe'
         elif val <= 35:    level = 'moderate'
@@ -100,8 +132,19 @@ def run_map_reduce_classification(df: pd.DataFrame) -> pd.DataFrame:
     
     return mr_result
 
-def run_etl(df_clean: pd.DataFrame, output_dir: str = "transformed") -> dict:
-    """Runs the full ETL process and saves the files."""
+def run_etl(df_clean: pd.DataFrame, output_dir: Union[str, Path] = "transformed") -> Dict[str, pd.DataFrame]:
+    """Runs the full ETL process and saves the output tables as parquet files.
+
+    Performs extractions and transformations to produce three main serving tables:
+    monthly averages, PM2.5 AQI categories, and daily peak readings.
+
+    Args:
+        df_clean: The clean source DataFrame.
+        output_dir: Target directory path to save the transformed parquet files.
+
+    Returns:
+        Dict[str, pd.DataFrame]: A dictionary containing the generated DataFrames.
+    """
     print("=== ETL PIPELINE ===")
     
     # Extract
@@ -142,3 +185,4 @@ def run_etl(df_clean: pd.DataFrame, output_dir: str = "transformed") -> dict:
         print(f"  [LOAD] Saved {path}")
         
     return out
+
