@@ -1,0 +1,60 @@
+import pandas as pd
+from pathlib import Path
+import shutil
+
+def load_data(filepath: str) -> pd.DataFrame:
+    """Loads the raw Parquet file into a Pandas DataFrame."""
+    path = Path(filepath)
+    if not path.exists():
+        raise FileNotFoundError(f"Source file {filepath} not found.")
+    df = pd.read_parquet(path)
+    print(f"[OK] Loaded {len(df):,} rows x {df.shape[1]} columns")
+    return df
+
+def generate_summary(df: pd.DataFrame, output_path: str = "output/ingestion_summary.txt") -> str:
+    """Generates summary statistics and saves them to a file."""
+    out_file = Path(output_path)
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    
+    summary_lines = [
+        "============================================================",
+        "INGESTION SUMMARY",
+        "============================================================",
+        f"Total records      : {len(df):,}",
+        f"Columns            : {df.shape[1]}",
+        f"Date range         : {df['datetime'].min()}  ->  {df['datetime'].max()}",
+        f"Years              : {sorted(df['year'].unique().tolist())}",
+        f"Stations           : {df['station_id'].nunique()}",
+        f"Pollutant species  : {df['pollutant'].nunique()}",
+        "",
+        "Records per year-month:",
+        df.groupby(["year", "month"]).size().to_string(),
+        "",
+        "Records per pollutant:",
+        df["pollutant"].value_counts().to_string(),
+    ]
+    summary_content = "\n".join(summary_lines)
+    out_file.write_text(summary_content, encoding="utf-8")
+    print(f"[OK] Saved ingestion summary to {output_path}")
+    return summary_content
+
+def partition_dataset(df: pd.DataFrame, output_dir: str = "partitioned_data") -> int:
+    """Partitions the dataset in Hive-style format (year=YYYY/month=MM/data.parquet)."""
+    out_path = Path(output_dir)
+    
+    # Clean previous partitioning
+    if out_path.exists():
+        shutil.rmtree(out_path)
+    out_path.mkdir(parents=True, exist_ok=True)
+    
+    written = 0
+    for (yr, mo), chunk in df.groupby(["year", "month"]):
+        folder = out_path / f"year={yr}" / f"month={mo:02d}"
+        folder.mkdir(parents=True, exist_ok=True)
+        # Drop partitioning columns from file content to avoid redundancy
+        chunk.drop(columns=["year", "month"]).to_parquet(folder / "data.parquet", index=False)
+        written += 1
+        print(f"  Partition year={yr} month={mo:02d}  ->  {len(chunk):,} rows")
+        
+    print(f"[OK] Wrote {written} partition files into '{output_dir}/'")
+    return written
