@@ -17,13 +17,18 @@ def load_data(filepath: Union[str, Path]) -> pd.DataFrame:
 
     Raises:
         FileNotFoundError: If the provided filepath does not exist.
+        IOError: If there is an issue reading the parquet file.
     """
     path = Path(filepath)
     if not path.exists():
         raise FileNotFoundError(f"Source file {filepath} not found.")
-    df = pd.read_parquet(path)
-    logger.info(f"Loaded {len(df):,} rows x {df.shape[1]} columns")
-    return df
+    try:
+        df = pd.read_parquet(path)
+        logger.info(f"Loaded {len(df):,} rows x {df.shape[1]} columns")
+        return df
+    except Exception as e:
+        logger.error(f"Failed to read parquet file from '{filepath}': {e}")
+        raise IOError(f"Failed to read parquet file: {e}") from e
 
 def generate_summary(df: pd.DataFrame, output_path: Union[str, Path] = "output/ingestion_summary.txt") -> str:
     """Generates summary statistics from the data and saves them to a file.
@@ -34,9 +39,16 @@ def generate_summary(df: pd.DataFrame, output_path: Union[str, Path] = "output/i
 
     Returns:
         str: The raw content of the generated summary report.
+    
+    Raises:
+        IOError: If writing the summary report fails.
     """
     out_file = Path(output_path)
-    out_file.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        out_file.parent.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        logger.error(f"Failed to create output directory for summary '{out_file.parent}': {e}")
+        raise IOError(f"Failed to prepare summary output directory: {e}") from e
     
     summary_lines = [
         "============================================================",
@@ -56,9 +68,13 @@ def generate_summary(df: pd.DataFrame, output_path: Union[str, Path] = "output/i
         df["pollutant"].value_counts().to_string(),
     ]
     summary_content = "\n".join(summary_lines)
-    out_file.write_text(summary_content, encoding="utf-8")
-    logger.info(f"Saved ingestion summary to {output_path}")
-    return summary_content
+    try:
+        out_file.write_text(summary_content, encoding="utf-8")
+        logger.info(f"Saved ingestion summary to {output_path}")
+        return summary_content
+    except Exception as e:
+        logger.error(f"Failed to write summary report to '{output_path}': {e}")
+        raise IOError(f"Failed to write summary report: {e}") from e
 
 def partition_dataset(df: pd.DataFrame, output_dir: Union[str, Path] = "partitioned_data") -> int:
     """Partitions the dataset in Hive-style format (year=YYYY/month=MM/data.parquet).
@@ -69,22 +85,33 @@ def partition_dataset(df: pd.DataFrame, output_dir: Union[str, Path] = "partitio
 
     Returns:
         int: The total number of partition folders/files written.
+
+    Raises:
+        IOError: If preparing or writing partitions fails.
     """
     out_path = Path(output_dir)
     
     # Clean previous partitioning
-    if out_path.exists():
-        shutil.rmtree(out_path)
-    out_path.mkdir(parents=True, exist_ok=True)
+    try:
+        if out_path.exists():
+            shutil.rmtree(out_path)
+        out_path.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        logger.error(f"Failed to prepare partition directory '{output_dir}': {e}")
+        raise IOError(f"Failed to clean/create partition directory: {e}") from e
     
     written = 0
     for (yr, mo), chunk in df.groupby(["year", "month"]):
         folder = out_path / f"year={yr}" / f"month={mo:02d}"
-        folder.mkdir(parents=True, exist_ok=True)
-        # Drop partitioning columns from file content to avoid redundancy
-        chunk.drop(columns=["year", "month"]).to_parquet(folder / "data.parquet", index=False)
-        written += 1
-        logger.info(f"  Partition year={yr} month={mo:02d}  ->  {len(chunk):,} rows")
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+            # Drop partitioning columns from file content to avoid redundancy
+            chunk.drop(columns=["year", "month"]).to_parquet(folder / "data.parquet", index=False)
+            written += 1
+            logger.info(f"  Partition year={yr} month={mo:02d}  ->  {len(chunk):,} rows")
+        except Exception as e:
+            logger.error(f"Failed to write partition file for year={yr} month={mo}: {e}")
+            raise IOError(f"Failed to write partition file: {e}") from e
         
     logger.info(f"Wrote {written} partition files into '{output_dir}/'")
     return written
